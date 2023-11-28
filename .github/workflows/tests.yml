@@ -13,6 +13,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Check branch
+      run: |
+        if [ $GITHUB_REF != 'refs/heads/main' ]; then
+          echo "This push is not to the main branch. Exiting without running tests."
+          exit 0
+        fi
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
@@ -23,3 +30,15 @@ jobs:
 
     - name: Run tests
       run: npm test
+
+    - name: Set status checks
+      run: |
+        if [ $GITHUB_REF = 'refs/heads/main' ]; then
+          # Replace the check name with the actual check name from your CI
+          CHECK_NAME="ci-check"
+          STATUS=$(npm test | grep "All tests passed" && echo "success" || echo "failure")
+          echo "Setting status check to $STATUS"
+          curl -u "$GITHUB_ACTOR:$GITHUB_TOKEN" -X POST -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+          -d '{"state": "'"$STATUS"'", "context": "'"$CHECK_NAME"'", "description": "Run tests"}'
+        fi
